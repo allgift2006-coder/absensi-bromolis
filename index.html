@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Event 3rd Anniversary BROMOLIS</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- SheetJS untuk Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- HTML5-QRCode Scanner -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- QRCode Generator -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- html2canvas untuk unduh ID card -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bromolis: {
+                            gold: '#FFD700',
+                            blue: '#00E5FF',
+                            dark: '#0B0F19',
+                            card: '#161F33',
+                            accent: '#F59E0B'
+                        }
+                    },
+                    fontFamily: {
+                        tech: ['Orbitron', 'sans-serif'],
+                        sub: ['Rajdhani', 'sans-serif'],
+                        body: ['Roboto', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .badge-qr-UND { background-color: #FFD700 !important; }
+        .badge-qr-KND { background-color: #00E5FF !important; }
+        .badge-qr-DPZ { background-color: #00E676 !important; }
+        .badge-qr-FRE { background-color: #94A3B8 !important; }
+
+        /* Dimensi Standar ID Card (CR80 Vertical) */
+        .id-card-wrap {
+            width: 320px;
+            height: 500px;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border: 2px solid #FFD700;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body class="bg-bromolis-dark text-gray-100 font-body min-h-screen">
+
+    <!-- Header Header & Banner Logo -->
+    <header class="bg-bromolis-card border-b border-yellow-500/30 sticky top-0 z-40 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 rounded-lg bg-yellow-500 flex items-center justify-center font-tech text-black font-black text-xl shadow-md border-2 border-cyan-400">
+                    3rd
+                </div>
+                <div>
+                    <h1 class="font-tech text-xl md:text-2xl font-black text-yellow-400 tracking-wider">
+                        BROMOLIS <span class="text-cyan-400 text-sm md:text-base font-sub block md:inline">BROTHERHOOD MOTOR LISTRIK</span>
+                    </h1>
+                    <p class="text-xs text-gray-300 font-sub">3rd ANNIVERSARY ATTENDANCE SYSTEM</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button onclick="openScannerModal()" class="bg-cyan-500 hover:bg-cyan-400 text-black font-bold px-4 py-2 rounded-lg font-sub transition flex items-center gap-2 shadow-lg">
+                    <i class="fa-solid fa-qrcode text-lg"></i>
+                    <span>SCANNER PANITIA</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Content Utama -->
+    <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+        <!-- Informasi Detail Acara & Lokasi -->
+        <div class="bg-bromolis-card border border-yellow-500/30 rounded-xl p-4 md:p-6 shadow-xl relative overflow-hidden">
+            <div class="absolute right-0 top-0 opacity-10 font-tech text-9xl text-yellow-500 pointer-events-none select-none">3rd</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
+                <div class="space-y-2">
+                    <h2 class="text-yellow-400 font-tech text-lg font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-calendar-day"></i> SABTU, 21 NOPEMBER 2026
+                    </h2>
+                    <p class="text-cyan-400 font-sub text-base font-semibold flex items-center gap-2">
+                        <i class="fa-solid fa-clock"></i> Jam 15.00 WIB s/d Selesai
+                    </p>
+                </div>
+                <div class="space-y-1 text-sm text-gray-300 border-t md:border-t-0 md:border-l border-gray-700 pt-3 md:pt-0 md:pl-6">
+                    <p class="font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-location-dot text-red-500"></i> Centra Mall Apartemen Gunawangsa
+                    </p>
+                    <p>Jl. Tidar No. 350, Surabaya</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Statistik Presensi -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-bromolis-card border-l-4 border-yellow-500 p-5 rounded-xl shadow-md">
+                <p class="text-xs font-sub text-gray-400 font-bold uppercase tracking-wider">Total Terdaftar</p>
+                <div class="flex items-center justify-between mt-2">
+                    <span id="stat-total" class="text-3xl font-tech font-bold text-white">0</span>
+                    <i class="fa-solid fa-users text-yellow-500 text-3xl opacity-80"></i>
+                </div>
+            </div>
+            <div class="bg-bromolis-card border-l-4 border-green-500 p-5 rounded-xl shadow-md">
+                <p class="text-xs font-sub text-gray-400 font-bold uppercase tracking-wider">Telah Hadir</p>
+                <div class="flex items-center justify-between mt-2">
+                    <span id="stat-hadir" class="text-3xl font-tech font-bold text-green-400">0</span>
+                    <i class="fa-solid fa-user-check text-green-500 text-3xl opacity-80"></i>
+                </div>
+            </div>
+            <div class="bg-bromolis-card border-l-4 border-red-500 p-5 rounded-xl shadow-md">
+                <p class="text-xs font-sub text-gray-400 font-bold uppercase tracking-wider">Belum Hadir</p>
+                <div class="flex items-center justify-between mt-2">
+                    <span id="stat-belum" class="text-3xl font-tech font-bold text-red-400">0</span>
+                    <i class="fa-solid fa-user-clock text-red-500 text-3xl opacity-80"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toolbar Aksi Data Peserta -->
+        <div class="bg-bromolis-card border border-gray-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Download Template Excel (.xlsx) -->
+                <button onclick="downloadTemplateExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-4 py-2 rounded-lg flex items-center gap-2 transition shadow">
+                    <i class="fa-solid fa-file-excel"></i>
+                    <span>Download Template Excel (.xlsx)</span>
+                </button>
+                
+                <!-- Upload Excel -->
+                <label class="bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm px-4 py-2 rounded-lg flex items-center gap-2 cursor-pointer transition shadow">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Import Excel</span>
+                    <input type="file" id="excel-input" accept=".xlsx, .xls" class="hidden" onchange="importExcel(event)">
+                </label>
+
+                <!-- Ekspor Data Real -->
+                <button onclick="exportDataExcel()" class="bg-gray-700 hover:bg-gray-600 text-gray-200 font-bold text-sm px-3 py-2 rounded-lg flex items-center gap-2 transition">
+                    <i class="fa-solid fa-download"></i>
+                    <span>Ekspor Data</span>
+                </button>
+            </div>
+
+            <!-- Tambah Peserta Manual -->
+            <button onclick="openAddModal()" class="bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm px-4 py-2 rounded-lg flex items-center gap-2 transition">
+                <i class="fa-solid fa-user-plus"></i>
+                <span>Tambah Peserta</span>
+            </button>
+        </div>
+
+        <!-- Tabel Database Peserta -->
+        <div class="bg-bromolis-card border border-gray-800 rounded-xl overflow-hidden shadow-xl">
+            <div class="p-4 border-b border-gray-800 flex flex-wrap justify-between items-center gap-3">
+                <h3 class="font-tech text-yellow-400 font-bold text-lg">DATABASE PESERTA EVENT</h3>
+                <input type="text" id="search-input" onkeyup="renderTable()" placeholder="Cari nama, ID, atau No WA..." class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-cyan-400 w-full sm:w-64">
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-gray-300">
+                    <thead class="bg-gray-900 text-gray-400 font-sub text-xs uppercase tracking-wider border-b border-gray-800">
+                        <tr>
+                            <th class="px-4 py-3">No</th>
+                            <th class="px-4 py-3">ID Pass</th>
+                            <th class="px-4 py-3">Nama Peserta</th>
+                            <th class="px-4 py-3">Nomor WA</th>
+                            <th class="px-4 py-3">Jenis Tiket</th>
+                            <th class="px-4 py-3 text-center">Status Presensi</th>
+                            <th class="px-4 py-3 text-center">Aksi Langsung</th>
+                        </tr>
+                    </thead>
+                    <tbody id="peserta-table-body" class="divide-y divide-gray-800/60">
+                        <!-- Render Data Peserta -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Pass Card (Aksen CR80 Standard) -->
+    <div id="passcard-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-gray-900 border border-yellow-500/40 rounded-xl p-6 max-w-md w-full relative space-y-4">
+            <button onclick="closePasscardModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h3 class="font-tech text-yellow-400 text-center font-bold text-lg">PASS CARD PESERTA</h3>
+
+            <!-- Template ID Card CR80 -->
+            <div class="flex justify-center">
+                <div id="id-card-element" class="id-card-wrap rounded-2xl p-5 flex flex-col justify-between text-center relative overflow-hidden">
+                    <!-- Background Logo Watermark -->
+                    <div class="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
+                        <span class="font-tech text-8xl font-black text-yellow-400">BROMOLIS</span>
+                    </div>
+
+                    <!-- Header Card -->
+                    <div class="border-b border-yellow-500/40 pb-3 relative z-10">
+                        <div class="font-tech text-yellow-400 text-sm font-black tracking-widest">3rd ANNIVERSARY</div>
+                        <div class="font-tech text-white text-xs tracking-wider">BROMOLIS SURABAYA</div>
+                    </div>
+
+                    <!-- Detail Peserta -->
+                    <div class="space-y-1 relative z-10">
+                        <div id="card-id" class="font-tech text-cyan-400 text-xl font-bold">UND-001</div>
+                        <div id="card-nama" class="font-bold text-white text-lg leading-tight">Nama Peserta</div>
+                        <div id="card-wa" class="text-xs text-gray-300">08123456789</div>
+                        <div class="mt-2">
+                            <span id="card-tiket-badge" class="px-3 py-1 rounded-full text-xs font-bold text-black font-sub">
+                                UNDANGAN
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- QR Code Area -->
+                    <div class="flex justify-center relative z-10 py-2">
+                        <div id="qrcode-container" class="p-3 rounded-xl bg-white shadow-lg"></div>
+                    </div>
+
+                    <!-- Footer Card Event Info -->
+                    <div class="border-t border-gray-700/80 pt-2 text-left relative z-10 space-y-0.5">
+                        <p class="text-[10px] text-yellow-400 font-bold flex items-center gap-1">
+                            <i class="fa-solid fa-calendar-day"></i> Sabtu, 21 Nopember 2026 (15.00 WIB)
+                        </p>
+                        <p class="text-[9px] text-gray-300 truncate">
+                            <i class="fa-solid fa-location-dot text-red-400"></i> Centra Mall Gunawangsa Tidar Surabaya
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tombol Unduh ID Card -->
+            <div class="flex gap-2">
+                <button onclick="downloadIDCard()" class="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-2.5 rounded-lg font-sub text-sm transition">
+                    <i class="fa-solid fa-download"></i> Unduh Pass Card (PNG)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Scanner Panitia -->
+    <div id="scanner-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-cyan-500/40 rounded-xl p-5 max-w-lg w-full relative space-y-4">
+            <button onclick="closeScannerModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h3 class="font-tech text-cyan-400 font-bold text-lg flex items-center gap-2">
+                <i class="fa-solid fa-camera"></i> SCANNER PRESENSI PANITIA
+            </h3>
+
+            <!-- Control Otorisasi Device -->
+            <div class="bg-gray-800 p-3 rounded-lg text-xs space-y-2 border border-gray-700">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-300">Gadget ID: <strong id="current-device-id" class="text-yellow-400">---</strong></span>
+                    <span id="device-status-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500 text-black">Terotorisasi</span>
+                </div>
+                <div class="flex justify-between items-center text-gray-400 border-t border-gray-700 pt-1.5">
+                    <span>Kuota Gadget Panitia: <strong id="device-count-text" class="text-cyan-400">1 / 6 Gadget</strong></span>
+                    <button onclick="resetDeviceLimits()" class="text-red-400 hover:text-red-300 underline text-[11px]">Reset Otorisasi Device</button>
+                </div>
+            </div>
+
+            <!-- Pengaturan Pilihan Kamera -->
+            <div class="space-y-2">
+                <label class="text-xs text-gray-300 font-bold block">Pilih Kamera HP / Laptop:</label>
+                <div class="flex gap-2">
+                    <select id="camera-select" onchange="switchCamera(this.value)" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-cyan-400 flex-1">
+                        <option value="">Memuat Kamera...</option>
+                    </select>
+                    <button onclick="requestCameraAccess()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1">
+                        <i class="fa-solid fa-arrows-rotate"></i> Reload Kamera
+                    </button>
+                </div>
+            </div>
+
+            <!-- Frame Kamera Scanner -->
+            <div class="relative bg-black rounded-lg overflow-hidden border border-gray-800 min-h-[220px] flex items-center justify-center">
+                <div id="qr-reader" class="w-full"></div>
+                <div id="scanner-placeholder" class="text-center text-gray-500 p-6 space-y-2">
+                    <i class="fa-solid fa-camera-retro text-4xl"></i>
+                    <p class="text-xs">Klik "Reload Kamera" atau izinkan browser HP untuk membuka kamera.</p>
+                </div>
+            </div>
+
+            <!-- Fallback Upload Foto QR -->
+            <div class="border-t border-gray-800 pt-3 flex items-center justify-between gap-2">
+                <span class="text-xs text-gray-400">Kamera terblokir?</span>
+                <label class="bg-gray-800 hover:bg-gray-700 text-cyan-400 border border-cyan-500/30 text-xs px-3 py-1.5 rounded-lg cursor-pointer transition">
+                    <i class="fa-solid fa-image"></i> Scan dari Foto QR
+                    <input type="file" accept="image/*" class="hidden" onchange="scanFromImageFile(event)">
+                </label>
+            </div>
+
+            <!-- Manual Input Checkin -->
+            <div class="border-t border-gray-800 pt-3 flex gap-2">
+                <input type="text" id="manual-id-input" placeholder="Atau ketik ID Pass (contoh: UND-001)" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 flex-1 focus:outline-none focus:border-cyan-400">
+                <button onclick="handleManualCheckin()" class="bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm px-4 py-1.5 rounded-lg">Check-In</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Tambah Peserta Manual -->
+    <div id="add-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-yellow-500/40 rounded-xl p-5 max-w-md w-full relative space-y-4">
+            <button onclick="closeAddModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h3 class="font-tech text-yellow-400 font-bold text-lg">TAMBAH PESERTA BARU</h3>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs text-gray-300 font-bold block mb-1">Nama Lengkap Peserta</label>
+                    <input type="text" id="add-nama" placeholder="Masukkan nama..." class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 w-full focus:outline-none focus:border-yellow-400">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-300 font-bold block mb-1">Nomor WhatsApp (Contoh: 08123456789)</label>
+                    <input type="text" id="add-wa" placeholder="08..." class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 w-full focus:outline-none focus:border-yellow-400">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-300 font-bold block mb-1">Jenis Tiket</label>
+                    <select id="add-tiket" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 w-full focus:outline-none focus:border-yellow-400">
+                        <option value="Undangan">Undangan (UND)</option>
+                        <option value="Konsumsi & Doorprize">Konsumsi & Doorprize (KND)</option>
+                        <option value="Doorprize">Doorprize (DPZ)</option>
+                        <option value="Free">Free (FRE)</option>
+                    </select>
+                </div>
+                <button onclick="saveNewPeserta()" class="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2 rounded-lg text-sm transition">
+                    Simpan Peserta
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Logika Aplikasi -->
+    <script>
+        // Data State Peserta
+        let dataPeserta = [
+            { id: "UND-001", nama: "Ibnu Chiwari", wa: "08123456789", tiket: "Undangan", status: "Belum Hadir" },
+            { id: "KND-002", nama: "Budi Santoso", wa: "08198765432", tiket: "Konsumsi & Doorprize", status: "Belum Hadir" },
+            { id: "DPZ-003", nama: "Ahmad Rizky", wa: "08571234567", tiket: "Doorprize", status: "Belum Hadir" },
+            { id: "FRE-004", nama: "Siti Rahma", wa: "08213456789", tiket: "Free", status: "Belum Hadir" }
+        ];
+
+        let html5QrCode = null;
+        let selectedDeviceId = null;
+        let currentActivePeserta = null;
+
+        // Load awal
+        window.addEventListener('DOMContentLoaded', () => {
+            loadLocalData();
+            initDeviceId();
+            renderTable();
+            updateStats();
+        });
+
+        // Simpan & Ambil data dari Local Storage (Otomatis Tersinkron Lokal)
+        function saveLocalData() {
+            localStorage.setItem('bromolis_peserta_data', JSON.stringify(dataPeserta));
+            renderTable();
+            updateStats();
+        }
+
+        function loadLocalData() {
+            const saved = localStorage.getItem('bromolis_peserta_data');
+            if (saved) {
+                dataPeserta = JSON.parse(saved);
+            }
+        }
+
+        // Penanganan ID Device Panitia (Maksimal 6 Device)
+        function initDeviceId() {
+            let deviceId = localStorage.getItem('bromolis_device_id');
+            if (!deviceId) {
+                deviceId = 'GADGET-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+                localStorage.setItem('bromolis_device_id', deviceId);
+            }
+
+            let devices = JSON.parse(localStorage.getItem('bromolis_registered_devices') || '[]');
+            if (!devices.includes(deviceId)) {
+                if (devices.length >= 6) {
+                    document.getElementById('device-status-badge').innerText = 'Kuota Penuh (Max 6)';
+                    document.getElementById('device-status-badge').className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white';
+                } else {
+                    devices.push(deviceId);
+                    localStorage.setItem('bromolis_registered_devices', JSON.stringify(devices));
+                }
+            }
+
+            document.getElementById('current-device-id').innerText = deviceId;
+            document.getElementById('device-count-text').innerText = `${devices.length} / 6 Gadget`;
+        }
+
+        function resetDeviceLimits() {
+            if (confirm("Reset semua daftar gadget panitia terdaftar?")) {
+                localStorage.removeItem('bromolis_registered_devices');
+                initDeviceId();
+                alert("Daftar gadget panitia berhasil di-reset.");
+            }
+        }
+
+        // Kodifikasi Singkat Tiket (3 Huruf + Nomor Urut)
+        function getTiketCode(jenisTiket) {
+            switch (jenisTiket) {
+                case 'Undangan': return 'UND';
+                case 'Konsumsi & Doorprize': return 'KND';
+                case 'Doorprize': return 'DPZ';
+                case 'Free': return 'FRE';
+                default: return 'EVT';
+            }
+        }
+
+        function generateIDPass(jenisTiket) {
+            const code = getTiketCode(jenisTiket);
+            const count = dataPeserta.filter(p => getTiketCode(p.tiket) === code).length + 1;
+            return `${code}-${String(count).padStart(3, '0')}`;
+        }
+
+        // Warna Background QR Code Sesuai Jenis Tiket
+        function getQRBgColor(jenisTiket) {
+            switch (jenisTiket) {
+                case 'Undangan': return '#FFD700'; // Emas
+                case 'Konsumsi & Doorprize': return '#00E5FF'; // Biru Elektrik
+                case 'Doorprize': return '#00E676'; // Hijau
+                case 'Free': return '#94A3B8'; // Abu-abu
+                default: return '#FFFFFF';
+            }
+        }
+
+        // Render Statistik
+        function updateStats() {
+            const total = dataPeserta.length;
+            const hadir = dataPeserta.filter(p => p.status === 'Hadir').length;
+            const belum = total - hadir;
+
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-hadir').innerText = hadir;
+            document.getElementById('stat-belum').innerText = belum;
+        }
+
+        // Render Tabel Peserta
+        function renderTable() {
+            const tbody = document.getElementById('peserta-table-body');
+            const search = document.getElementById('search-input').value.toLowerCase();
+            tbody.innerHTML = '';
+
+            const filtered = dataPeserta.filter(p => 
+                p.nama.toLowerCase().includes(search) || 
+                p.id.toLowerCase().includes(search) || 
+                p.wa.includes(search)
+            );
+
+            filtered.forEach((p, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-800/50 transition";
+                
+                const isHadir = p.status === 'Hadir';
+                const statusBadge = isHadir 
+                    ? `<span class="bg-green-500/20 text-green-400 border border-green-500/40 px-2.5 py-1 rounded-full text-xs font-bold"><i class="fa-solid fa-check"></i> Hadir</span>`
+                    : `<span class="bg-red-500/20 text-red-400 border border-red-500/40 px-2.5 py-1 rounded-full text-xs font-bold"><i class="fa-solid fa-clock"></i> Belum</span>`;
+
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-gray-400">${index + 1}</td>
+                    <td class="px-4 py-3 font-tech text-yellow-400 font-bold">${p.id}</td>
+                    <td class="px-4 py-3 font-bold text-white">${p.nama}</td>
+                    <td class="px-4 py-3 text-gray-300">${p.wa}</td>
+                    <td class="px-4 py-3">
+                        <span class="text-xs px-2 py-0.5 rounded font-sub font-bold text-black badge-qr-${getTiketCode(p.tiket)}">
+                            ${p.tiket}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-center">${statusBadge}</td>
+                    <td class="px-4 py-3 text-center space-x-1">
+                        <button onclick="openPasscard('${p.id}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-2.5 py-1 rounded text-xs font-bold">
+                            <i class="fa-solid fa-id-card"></i> Pass Card
+                        </button>
+                        <button onclick="sendWA('${p.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-xs font-bold">
+                            <i class="fa-brands fa-whatsapp"></i> WA
+                        </button>
+                        <button onclick="deletePeserta('${p.id}')" class="bg-red-600 hover:bg-red-500 text-white px-2 py-1 rounded text-xs">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Tampilkan Pass Card
+        function openPasscard(id) {
+            const p = dataPeserta.find(item => item.id === id);
+            if (!p) return;
+
+            currentActivePeserta = p;
+            document.getElementById('card-id').innerText = p.id;
+            document.getElementById('card-nama').innerText = p.nama;
+            document.getElementById('card-wa').innerText = p.wa;
+            
+            const badge = document.getElementById('card-tiket-badge');
+            badge.innerText = p.tiket.toUpperCase();
+            badge.className = `px-3 py-1 rounded-full text-xs font-bold text-black font-sub badge-qr-${getTiketCode(p.tiket)}`;
+
+            // Render QR Code dengan Background Warna Khusus Tiket
+            const qrContainer = document.getElementById('qrcode-container');
+            qrContainer.innerHTML = '';
+            qrContainer.style.backgroundColor = getQRBgColor(p.tiket);
+
+            new QRCode(qrContainer, {
+                text: p.id,
+                width: 130,
+                height: 130,
+                colorDark: "#000000",
+                colorLight: getQRBgColor(p.tiket),
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            document.getElementById('passcard-modal').classList.remove('hidden');
+        }
+
+        function closePasscardModal() {
+            document.getElementById('passcard-modal').classList.add('hidden');
+        }
+
+        // Unduh Pass Card sebagai Gambar PNG
+        function downloadIDCard() {
+            const cardElem = document.getElementById('id-card-element');
+            html2canvas(cardElem, { scale: 3 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Passcard_${currentActivePeserta.id}_${currentActivePeserta.nama}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        // Kirim WhatsApp Peserta
+        function sendWA(id) {
+            const p = dataPeserta.find(item => item.id === id);
+            if (!p) return;
+
+            let formattedWA = p.wa.replace(/[^0-9]/g, '');
+            if (formattedWA.startsWith('0')) {
+                formattedWA = '62' + formattedWA.slice(1);
+            }
+
+            const pesan = `Halo *${p.nama}*,\n\nBerikut Pass Card resmi Anda untuk acara *3rd Anniversary BROMOLIS*:\n- *ID Pass*: ${p.id}\n- *Jenis Tiket*: ${p.tiket}\n\n*Detail Acara*:\n📅 Sabtu, 21 Nopember 2026\n⏰ Jam 15.00 WIB\n📍 Centra Mall Apartemen Gunawangsa, Jl. Tidar No. 350, Surabaya.\n\nHarap tunjukkan ID Pass ini saat datang di lokasi. Terima kasih!`;
+
+            window.open(`https://api.whatsapp.com/send?phone=${formattedWA}&text=${encodeURIComponent(pesan)}`, '_blank');
+        }
+
+        // Download Template Excel Real (.xlsx)
+        function downloadTemplateExcel() {
+            const templateData = [
+                { "Nama Peserta": "Contoh Nama 1", "Nomor WA": "081234567890", "Jenis Tiket": "Undangan" },
+                { "Nama Peserta": "Contoh Nama 2", "Nomor WA": "081987654321", "Jenis Tiket": "Konsumsi & Doorprize" },
+                { "Nama Peserta": "Contoh Nama 3", "Nomor WA": "085712345678", "Jenis Tiket": "Doorprize" },
+                { "Nama Peserta": "Contoh Nama 4", "Nomor WA": "082134567890", "Jenis Tiket": "Free" }
+            ];
+
+            const worksheet = XLSX.utils.json_to_sheet(templateData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Template Peserta");
+            XLSX.writeFile(workbook, "Template_Data_Peserta_BROMOLIS.xlsx");
+        }
+
+        // Impor Data dari Excel (.xlsx)
+        function importExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+
+                json.forEach(row => {
+                    const nama = row['Nama Peserta'] || row['Nama'] || '';
+                    const wa = row['Nomor WA'] || row['WA'] || '';
+                    const tiket = row['Jenis Tiket'] || 'Free';
+
+                    if (nama) {
+                        const newId = generateIDPass(tiket);
+                        dataPeserta.push({
+                            id: newId,
+                            nama: nama,
+                            wa: String(wa),
+                            tiket: tiket,
+                            status: "Belum Hadir"
+                        });
+                    }
+                });
+
+                saveLocalData();
+                alert("Data dari file Excel berhasil di-import!");
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Ekspor Data Peserta ke Excel (.xlsx)
+        function exportDataExcel() {
+            const worksheet = XLSX.utils.json_to_sheet(dataPeserta);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Data Presensi");
+            XLSX.writeFile(workbook, "Database_Peserta_BROMOLIS_3rd.xlsx");
+        }
+
+        // Modals Tambah Peserta Manual
+        function openAddModal() {
+            document.getElementById('add-modal').classList.remove('hidden');
+        }
+
+        function closeAddModal() {
+            document.getElementById('add-modal').classList.add('hidden');
+        }
+
+        function saveNewPeserta() {
+            const nama = document.getElementById('add-nama').value;
+            const wa = document.getElementById('add-wa').value;
+            const tiket = document.getElementById('add-tiket').value;
+
+            if (!nama || !wa) {
+                alert("Harap isi Nama dan Nomor WA peserta.");
+                return;
+            }
+
+            const newId = generateIDPass(tiket);
+            dataPeserta.push({ id: newId, nama: nama, wa: wa, tiket: tiket, status: "Belum Hadir" });
+            saveLocalData();
+            closeAddModal();
+
+            document.getElementById('add-nama').value = '';
+            document.getElementById('add-wa').value = '';
+        }
+
+        function deletePeserta(id) {
+            if (confirm(`Hapus peserta dengan ID ${id}?`)) {
+                dataPeserta = dataPeserta.filter(p => p.id !== id);
+                saveLocalData();
+            }
+        }
+
+        // Scanner QR Code Kamera
+        function openScannerModal() {
+            document.getElementById('scanner-modal').classList.remove('hidden');
+            requestCameraAccess();
+        }
+
+        function closeScannerModal() {
+            if (html5QrCode) {
+                html5QrCode.stop().catch(() => {});
+            }
+            document.getElementById('scanner-modal').classList.add('hidden');
+        }
+
+        function requestCameraAccess() {
+            const select = document.getElementById('camera-select');
+            select.innerHTML = '<option value="">Meminta Akses Kamera...</option>';
+
+            Html5Qrcode.getCameras().then(devices => {
+                if (devices && devices.length > 0) {
+                    select.innerHTML = '';
+                    devices.forEach(device => {
+                        const opt = document.createElement('option');
+                        opt.value = device.id;
+                        opt.text = device.label || `Kamera ${select.length + 1}`;
+                        select.appendChild(opt);
+                    });
+                    selectedDeviceId = devices[0].id;
+                    startScanner(selectedDeviceId);
+                } else {
+                    select.innerHTML = '<option value="">Kamera Tidak Ditemukan</option>';
+                }
+            }).catch(err => {
+                select.innerHTML = '<option value="">Izin Kamera Ditolak</option>';
+            });
+        }
+
+        function switchCamera(deviceId) {
+            if (!deviceId) return;
+            selectedDeviceId = deviceId;
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => startScanner(deviceId));
+            } else {
+                startScanner(deviceId);
+            }
+        }
+
+        function startScanner(deviceId) {
+            document.getElementById('scanner-placeholder').classList.add('hidden');
+            html5QrCode = new Html5Qrcode("qr-reader");
+            
+            html5QrCode.start(
+                deviceId, 
+                { fps: 10, qrbox: { width: 220, height: 220 } },
+                (decodedText) => {
+                    executeCheckin(decodedText);
+                },
+                (errorMessage) => {}
+            ).catch(err => {
+                document.getElementById('scanner-placeholder').classList.remove('hidden');
+            });
+        }
+
+        function scanFromImageFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const qrScanner = new Html5Qrcode("qr-reader");
+            qrScanner.scanFile(file, true)
+                .then(decodedText => {
+                    executeCheckin(decodedText);
+                })
+                .catch(err => alert("QR Code tidak terbaca pada file foto tersebut."));
+        }
+
+        function handleManualCheckin() {
+            const id = document.getElementById('manual-id-input').value.trim().toUpperCase();
+            if (id) {
+                executeCheckin(id);
+                document.getElementById('manual-id-input').value = '';
+            }
+        }
+
+        function executeCheckin(idPass) {
+            const p = dataPeserta.find(item => item.id.toUpperCase() === idPass.toUpperCase());
+            if (p) {
+                if (p.status === 'Hadir') {
+                    alert(`Peserta ${p.nama} (${p.id}) SUDAH melakukan Check-In sebelumnya.`);
+                } else {
+                    p.status = 'Hadir';
+                    saveLocalData();
+                    alert(`SUCCESS! Check-In Berhasil:\n\nNama: ${p.nama}\nID Pass: ${p.id}\nTiket: ${p.tiket}`);
+                }
+            } else {
+                alert(`ID Pass "${idPass}" TIDAK DITEMUKAN dalam database peserta!`);
+            }
+        }
+    </script>
+</body>
+</html>
