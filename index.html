@@ -346,6 +346,11 @@
 
     <!-- Script Logika Aplikasi -->
     <script>
+
+        const SUPABASE_URL = 'https://[project-ref].supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // anon key Anda
+
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         // Data State Peserta
         let dataPeserta = [
             { id: "UND-001", nama: "Ibnu Chiwari", wa: "08123456789", tiket: "Undangan", status: "Belum Hadir" },
@@ -359,25 +364,149 @@
         let currentActivePeserta = null;
 
         // Load awal
-        window.addEventListener('DOMContentLoaded', () => {
-            loadLocalData();
+        // Load awal
+        window.addEventListener('DOMContentLoaded', async () => {
+            await loadDataFromSupabase();   // ← ganti dari loadLocalData()
             initDeviceId();
-            renderTable();
-            updateStats();
+            // renderTable() dan updateStats() sudah dipanggil di dalam loadDataFromSupabase()
+            
+            setupRealtimeSubscription();    // ← TAMBAHKAN BARIS INI
         });
 
         // Simpan & Ambil data dari Local Storage (Otomatis Tersinkron Lokal)
-        function saveLocalData() {
-            localStorage.setItem('bromolis_peserta_data', JSON.stringify(dataPeserta));
+        // Fungsi baru untuk mengambil semua data dari Supabase
+        async function loadDataFromSupabase() {
+            const { data, error } = await supabase
+                .from('peserta')
+                .select('*')
+                .order('id', { ascending: true });
+
+            if (error) {
+                console.error('Load error:', error);
+                alert('Gagal memuat data dari Supabase.');
+                return;
+            }
+            dataPeserta = data || [];
             renderTable();
             updateStats();
         }
 
-        function loadLocalData() {
-            const saved = localStorage.getItem('bromolis_peserta_data');
-            if (saved) {
-                dataPeserta = JSON.parse(saved);
+        // ===============================
+        // 2. CHECK-IN (SCANNER / MANUAL)
+        // ===============================
+        async function executeCheckin(idPass) {
+            const p = dataPeserta.find(item => item.id.toUpperCase() === idPass.toUpperCase());
+
+            if (!p) {
+                alert(`ID Pass "${idPass}" TIDAK DITEMUKAN dalam database peserta!`);
+                return;
             }
+            if (p.status === 'Hadir') {
+                alert(`Peserta ${p.nama} (${p.id}) SUDAH melakukan Check-In sebelumnya.`);
+                return;
+            }
+
+            // Update di Supabase
+            const { error } = await supabase
+                .from('peserta')
+                .update({ status: 'Hadir' })
+                .eq('id', p.id);
+
+            if (error) {
+                alert(`Gagal update status: ${error.message}`);
+                return;
+            }
+
+            // Update state lokal
+            p.status = 'Hadir';
+            renderTable();
+            updateStats();
+
+            alert(`SUCCESS! Check-In Berhasil:\n\nNama: ${p.nama}\nID Pass: ${p.id}\nTiket: ${p.tiket}`);
+        }
+
+        // ===============================
+        // 3. HAPUS PESERTA
+        // ===============================
+        async function deletePeserta(id) {
+            if (!confirm(`Hapus peserta dengan ID ${id}?`)) return;
+
+            const { error } = await supabase
+                .from('peserta')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                alert(`Gagal menghapus: ${error.message}`);
+                return;
+            }
+
+            dataPeserta = dataPeserta.filter(p => p.id !== id);
+            renderTable();
+            updateStats();
+        }
+
+        function setupRealtimeSubscription() {
+            supabase
+                .channel('peserta-changes')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'peserta' },
+                    (payload) => {
+                        console.log('Perubahan real-time terdeteksi:', payload.eventType, payload.new || payload.old);
+                        loadDataFromSupabase();  // reload data dari database
+                    }
+                )
+                .subscribe((status) => {
+                    console.log('Status subscription realtime:', status);
+                });
+        }
+
+        // ===============================
+        // 4. IMPORT EXCEL (batch insert)
+        // ===============================
+        async function importExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+
+                const batch = [];
+                json.forEach(row => {
+                    const nama = row['Nama Peserta'] || row['Nama'] || '';
+                    const wa = row['Nomor WA'] || row['WA'] || '';
+                    const tiket = row['Jenis Tiket'] || 'Free';
+                    if (nama) {
+                        batch.push({
+                            id: generateIDPass(tiket + ':' + nama), // pastikan unik
+                            nama: nama,
+                            wa: String(wa),
+                            tiket: tiket,
+                            status: "Belum Hadir"
+                        });
+                    }
+                });
+
+                if (batch.length === 0) {
+                    alert('Tidak ada data valid di file Excel.');
+                    return;
+                }
+
+                const { error } = await supabase.from('peserta').insert(batch);
+                if (error) {
+                    alert(`Gagal import: ${error.message}`);
+                    return;
+                }
+
+                await loadDataFromSupabase();
+                alert(`${batch.length} peserta berhasil di-import.`);
+            };
+            reader.readAsArrayBuffer(file);
         }
 
         // Penanganan ID Device Panitia (Maksimal 6 Device)
@@ -424,8 +553,14 @@
 
         function generateIDPass(jenisTiket) {
             const code = getTiketCode(jenisTiket);
-            const count = dataPeserta.filter(p => getTiketCode(p.tiket) === code).length + 1;
-            return `${code}-${String(count).padStart(3, '0')}`;
+            // Cari nomor tertinggi yang ada di dataPeserta saat ini
+            const maxNum = dataPeserta
+                .filter(p => p.id.startsWith(code + '-'))
+                .reduce((max, p) => {
+                    const num = parseInt(p.id.split('-')[1]) || 0;
+                    return Math.max(max, num);
+                }, 0);
+            return `${code}-${String(maxNum + 1).padStart(3, '0')}`;
         }
 
         // Warna Background QR Code Sesuai Jenis Tiket
@@ -627,9 +762,9 @@
             document.getElementById('add-modal').classList.add('hidden');
         }
 
-        function saveNewPeserta() {
-            const nama = document.getElementById('add-nama').value;
-            const wa = document.getElementById('add-wa').value;
+        async function saveNewPeserta() {
+            const nama = document.getElementById('add-nama').value.trim();
+            const wa = document.getElementById('add-wa').value.trim();
             const tiket = document.getElementById('add-tiket').value;
 
             if (!nama || !wa) {
@@ -638,12 +773,41 @@
             }
 
             const newId = generateIDPass(tiket);
-            dataPeserta.push({ id: newId, nama: nama, wa: wa, tiket: tiket, status: "Belum Hadir" });
-            saveLocalData();
+            const newPeserta = {
+                id: newId,
+                nama: nama,
+                wa: wa,
+                tiket: tiket,
+                status: "Belum Hadir"
+            };
+
+            // Kirim ke Supabase
+            const { error } = await supabase
+                .from('peserta')
+                .insert([newPeserta]);
+
+            if (error) {
+                // Tangani jika ID sudah ada (duplicate key)
+                if (error.code === '23505') {
+                    alert(`Gagal: ID Pass "${newId}" sudah dipakai. Coba generate ulang atau refresh data.`);
+                } else {
+                    alert(`Gagal menyimpan peserta: ${error.message}`);
+                }
+                console.error('Insert error:', error);
+                return;
+            }
+
+            // Berhasil — update state lokal agar tabel langsung berubah
+            dataPeserta.push(newPeserta);
+            renderTable();
+            updateStats();
             closeAddModal();
 
+            // Reset form
             document.getElementById('add-nama').value = '';
             document.getElementById('add-wa').value = '';
+
+            alert(`Peserta "${nama}" berhasil ditambahkan dengan ID: ${newId}`);
         }
 
         function deletePeserta(id) {
