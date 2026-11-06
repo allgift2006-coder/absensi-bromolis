@@ -17,7 +17,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- html2canvas untuk unduh ID card -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cqwnqrsyuefticstmxcj.supabase.co"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
         tailwind.config = {
@@ -347,34 +347,40 @@
     <!-- Script Logika Aplikasi -->
     <script>
 
-        const SUPABASE_URL = 'https://[project-ref].supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // anon key Anda
+        // ============================================================
+        // 1. INISIALISASI SUPABASE
+        // ============================================================
+        const SUPABASE_URL = 'https://cqwnqrsyuefticstmxcj.supabase.co';
+        // ⚠️ GANTI dengan anon key Anda dari:
+        // Supabase Dashboard > Project Settings > API > anon public
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxd25xcnN5dWVmdGljc3RteGNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM4NzY3MDIsImV4cCI6MjEwOTQ1MjcwMn0.LZ8esWrB4oe0MmE0M7BbzTuS0oBIf91W9x1IaL066fw';
+
+        if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes('PASTE')) {
+            console.error('⚠️ SUPABASE_ANON_KEY belum diisi!');
+        }
 
         const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        // Data State Peserta
-        let dataPeserta = [
-            { id: "UND-001", nama: "Ibnu Chiwari", wa: "08123456789", tiket: "Undangan", status: "Belum Hadir" },
-            { id: "KND-002", nama: "Budi Santoso", wa: "08198765432", tiket: "Konsumsi & Doorprize", status: "Belum Hadir" },
-            { id: "DPZ-003", nama: "Ahmad Rizky", wa: "08571234567", tiket: "Doorprize", status: "Belum Hadir" },
-            { id: "FRE-004", nama: "Siti Rahma", wa: "08213456789", tiket: "Free", status: "Belum Hadir" }
-        ];
 
+        // ============================================================
+        // 2. STATE GLOBAL
+        // ============================================================
+        let dataPeserta = [];
         let html5QrCode = null;
         let selectedDeviceId = null;
         let currentActivePeserta = null;
 
-        // Load awal
-        // Load awal
+        // ============================================================
+        // 3. INIT SAAT HALAMAN DIMUAT
+        // ============================================================
         window.addEventListener('DOMContentLoaded', async () => {
-            await loadDataFromSupabase();   // ← ganti dari loadLocalData()
+            await loadDataFromSupabase();
             initDeviceId();
-            // renderTable() dan updateStats() sudah dipanggil di dalam loadDataFromSupabase()
-            
-            setupRealtimeSubscription();    // ← TAMBAHKAN BARIS INI
+            setupRealtimeSubscription();
         });
 
-        // Simpan & Ambil data dari Local Storage (Otomatis Tersinkron Lokal)
-        // Fungsi baru untuk mengambil semua data dari Supabase
+        // ============================================================
+        // 4. FUNGSI SUPABASE
+        // ============================================================
         async function loadDataFromSupabase() {
             const { data, error } = await supabase
                 .from('peserta')
@@ -383,7 +389,7 @@
 
             if (error) {
                 console.error('Load error:', error);
-                alert('Gagal memuat data dari Supabase.');
+                alert('Gagal memuat data dari Supabase: ' + error.message);
                 return;
             }
             dataPeserta = data || [];
@@ -391,9 +397,6 @@
             updateStats();
         }
 
-        // ===============================
-        // 2. CHECK-IN (SCANNER / MANUAL)
-        // ===============================
         async function executeCheckin(idPass) {
             const p = dataPeserta.find(item => item.id.toUpperCase() === idPass.toUpperCase());
 
@@ -406,7 +409,6 @@
                 return;
             }
 
-            // Update di Supabase
             const { error } = await supabase
                 .from('peserta')
                 .update({ status: 'Hadir' })
@@ -417,7 +419,6 @@
                 return;
             }
 
-            // Update state lokal
             p.status = 'Hadir';
             renderTable();
             updateStats();
@@ -425,9 +426,6 @@
             alert(`SUCCESS! Check-In Berhasil:\n\nNama: ${p.nama}\nID Pass: ${p.id}\nTiket: ${p.tiket}`);
         }
 
-        // ===============================
-        // 3. HAPUS PESERTA
-        // ===============================
         async function deletePeserta(id) {
             if (!confirm(`Hapus peserta dengan ID ${id}?`)) return;
 
@@ -446,25 +444,40 @@
             updateStats();
         }
 
-        function setupRealtimeSubscription() {
-            supabase
-                .channel('peserta-changes')
-                .on(
-                    'postgres_changes',
-                    { event: '*', schema: 'public', table: 'peserta' },
-                    (payload) => {
-                        console.log('Perubahan real-time terdeteksi:', payload.eventType, payload.new || payload.old);
-                        loadDataFromSupabase();  // reload data dari database
-                    }
-                )
-                .subscribe((status) => {
-                    console.log('Status subscription realtime:', status);
-                });
+        async function saveNewPeserta() {
+            const nama = document.getElementById('add-nama').value.trim();
+            const wa = document.getElementById('add-wa').value.trim();
+            const tiket = document.getElementById('add-tiket').value;
+
+            if (!nama || !wa) {
+                alert("Harap isi Nama dan Nomor WA peserta.");
+                return;
+            }
+
+            const newId = generateIDPass(tiket);
+            const newPeserta = { id: newId, nama, wa, tiket, status: "Belum Hadir" };
+
+            const { error } = await supabase.from('peserta').insert([newPeserta]);
+
+            if (error) {
+                if (error.code === '23505') {
+                    alert(`Gagal: ID Pass "${newId}" sudah dipakai. Coba refresh data.`);
+                } else {
+                    alert(`Gagal menyimpan peserta: ${error.message}`);
+                }
+                console.error('Insert error:', error);
+                return;
+            }
+
+            dataPeserta.push(newPeserta);
+            renderTable();
+            updateStats();
+            closeAddModal();
+            document.getElementById('add-nama').value = '';
+            document.getElementById('add-wa').value = '';
+            alert(`Peserta "${nama}" berhasil ditambahkan dengan ID: ${newId}`);
         }
 
-        // ===============================
-        // 4. IMPORT EXCEL (batch insert)
-        // ===============================
         async function importExcel(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -483,12 +496,12 @@
                     const tiket = row['Jenis Tiket'] || 'Free';
                     if (nama) {
                         batch.push({
-                            id: generateIDPass(tiket + ':' + nama), // pastikan unik
-                            nama: nama,
-                            wa: String(wa),
-                            tiket: tiket,
+                            id: generateIDPass(tiket),
+                            nama, wa: String(wa), tiket,
                             status: "Belum Hadir"
                         });
+                        // update sementara agar generateIDPass berikutnya increment
+                        dataPeserta.push({ id: generateIDPass(tiket) });
                     }
                 });
 
@@ -509,7 +522,25 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // Penanganan ID Device Panitia (Maksimal 6 Device)
+        function setupRealtimeSubscription() {
+            supabase
+                .channel('peserta-changes')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'peserta' },
+                    (payload) => {
+                        console.log('Realtime:', payload.eventType);
+                        loadDataFromSupabase();
+                    }
+                )
+                .subscribe((status) => {
+                    console.log('Realtime status:', status);
+                });
+        }
+
+        // ============================================================
+        // 5. FUNGSI HELPER
+        // ============================================================
         function initDeviceId() {
             let deviceId = localStorage.getItem('bromolis_device_id');
             if (!deviceId) {
@@ -527,7 +558,6 @@
                     localStorage.setItem('bromolis_registered_devices', JSON.stringify(devices));
                 }
             }
-
             document.getElementById('current-device-id').innerText = deviceId;
             document.getElementById('device-count-text').innerText = `${devices.length} / 6 Gadget`;
         }
@@ -540,7 +570,6 @@
             }
         }
 
-        // Kodifikasi Singkat Tiket (3 Huruf + Nomor Urut)
         function getTiketCode(jenisTiket) {
             switch (jenisTiket) {
                 case 'Undangan': return 'UND';
@@ -553,7 +582,6 @@
 
         function generateIDPass(jenisTiket) {
             const code = getTiketCode(jenisTiket);
-            // Cari nomor tertinggi yang ada di dataPeserta saat ini
             const maxNum = dataPeserta
                 .filter(p => p.id.startsWith(code + '-'))
                 .reduce((max, p) => {
@@ -563,46 +591,40 @@
             return `${code}-${String(maxNum + 1).padStart(3, '0')}`;
         }
 
-        // Warna Background QR Code Sesuai Jenis Tiket
         function getQRBgColor(jenisTiket) {
             switch (jenisTiket) {
-                case 'Undangan': return '#FFD700'; // Emas
-                case 'Konsumsi & Doorprize': return '#00E5FF'; // Biru Elektrik
-                case 'Doorprize': return '#00E676'; // Hijau
-                case 'Free': return '#94A3B8'; // Abu-abu
+                case 'Undangan': return '#FFD700';
+                case 'Konsumsi & Doorprize': return '#00E5FF';
+                case 'Doorprize': return '#00E676';
+                case 'Free': return '#94A3B8';
                 default: return '#FFFFFF';
             }
         }
 
-        // Render Statistik
         function updateStats() {
             const total = dataPeserta.length;
             const hadir = dataPeserta.filter(p => p.status === 'Hadir').length;
-            const belum = total - hadir;
-
             document.getElementById('stat-total').innerText = total;
             document.getElementById('stat-hadir').innerText = hadir;
-            document.getElementById('stat-belum').innerText = belum;
+            document.getElementById('stat-belum').innerText = total - hadir;
         }
 
-        // Render Tabel Peserta
         function renderTable() {
             const tbody = document.getElementById('peserta-table-body');
             const search = document.getElementById('search-input').value.toLowerCase();
             tbody.innerHTML = '';
 
-            const filtered = dataPeserta.filter(p => 
-                p.nama.toLowerCase().includes(search) || 
-                p.id.toLowerCase().includes(search) || 
+            const filtered = dataPeserta.filter(p =>
+                p.nama.toLowerCase().includes(search) ||
+                p.id.toLowerCase().includes(search) ||
                 p.wa.includes(search)
             );
 
             filtered.forEach((p, index) => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-800/50 transition";
-                
                 const isHadir = p.status === 'Hadir';
-                const statusBadge = isHadir 
+                const statusBadge = isHadir
                     ? `<span class="bg-green-500/20 text-green-400 border border-green-500/40 px-2.5 py-1 rounded-full text-xs font-bold"><i class="fa-solid fa-check"></i> Hadir</span>`
                     : `<span class="bg-red-500/20 text-red-400 border border-red-500/40 px-2.5 py-1 rounded-full text-xs font-bold"><i class="fa-solid fa-clock"></i> Belum</span>`;
 
@@ -611,56 +633,41 @@
                     <td class="px-4 py-3 font-tech text-yellow-400 font-bold">${p.id}</td>
                     <td class="px-4 py-3 font-bold text-white">${p.nama}</td>
                     <td class="px-4 py-3 text-gray-300">${p.wa}</td>
-                    <td class="px-4 py-3">
-                        <span class="text-xs px-2 py-0.5 rounded font-sub font-bold text-black badge-qr-${getTiketCode(p.tiket)}">
-                            ${p.tiket}
-                        </span>
-                    </td>
+                    <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded font-sub font-bold text-black badge-qr-${getTiketCode(p.tiket)}">${p.tiket}</span></td>
                     <td class="px-4 py-3 text-center">${statusBadge}</td>
                     <td class="px-4 py-3 text-center space-x-1">
-                        <button onclick="openPasscard('${p.id}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-2.5 py-1 rounded text-xs font-bold">
-                            <i class="fa-solid fa-id-card"></i> Pass Card
-                        </button>
-                        <button onclick="sendWA('${p.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-xs font-bold">
-                            <i class="fa-brands fa-whatsapp"></i> WA
-                        </button>
-                        <button onclick="deletePeserta('${p.id}')" class="bg-red-600 hover:bg-red-500 text-white px-2 py-1 rounded text-xs">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
-                    </td>
-                `;
+                        <button onclick="openPasscard('${p.id}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-2.5 py-1 rounded text-xs font-bold"><i class="fa-solid fa-id-card"></i> Pass Card</button>
+                        <button onclick="sendWA('${p.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-xs font-bold"><i class="fa-brands fa-whatsapp"></i> WA</button>
+                        <button onclick="deletePeserta('${p.id}')" class="bg-red-600 hover:bg-red-500 text-white px-2 py-1 rounded text-xs"><i class="fa-solid fa-trash"></i></button>
+                    </td>`;
                 tbody.appendChild(tr);
             });
         }
 
-        // Tampilkan Pass Card
+        // ============================================================
+        // 6. PASS CARD & WHATSAPP
+        // ============================================================
         function openPasscard(id) {
             const p = dataPeserta.find(item => item.id === id);
             if (!p) return;
-
             currentActivePeserta = p;
             document.getElementById('card-id').innerText = p.id;
             document.getElementById('card-nama').innerText = p.nama;
             document.getElementById('card-wa').innerText = p.wa;
-            
+
             const badge = document.getElementById('card-tiket-badge');
             badge.innerText = p.tiket.toUpperCase();
             badge.className = `px-3 py-1 rounded-full text-xs font-bold text-black font-sub badge-qr-${getTiketCode(p.tiket)}`;
 
-            // Render QR Code dengan Background Warna Khusus Tiket
             const qrContainer = document.getElementById('qrcode-container');
             qrContainer.innerHTML = '';
             qrContainer.style.backgroundColor = getQRBgColor(p.tiket);
-
             new QRCode(qrContainer, {
-                text: p.id,
-                width: 130,
-                height: 130,
+                text: p.id, width: 130, height: 130,
                 colorDark: "#000000",
                 colorLight: getQRBgColor(p.tiket),
                 correctLevel: QRCode.CorrectLevel.H
             });
-
             document.getElementById('passcard-modal').classList.remove('hidden');
         }
 
@@ -668,7 +675,6 @@
             document.getElementById('passcard-modal').classList.add('hidden');
         }
 
-        // Unduh Pass Card sebagai Gambar PNG
         function downloadIDCard() {
             const cardElem = document.getElementById('id-card-element');
             html2canvas(cardElem, { scale: 3 }).then(canvas => {
@@ -679,22 +685,18 @@
             });
         }
 
-        // Kirim WhatsApp Peserta
         function sendWA(id) {
             const p = dataPeserta.find(item => item.id === id);
             if (!p) return;
-
             let formattedWA = p.wa.replace(/[^0-9]/g, '');
-            if (formattedWA.startsWith('0')) {
-                formattedWA = '62' + formattedWA.slice(1);
-            }
-
+            if (formattedWA.startsWith('0')) formattedWA = '62' + formattedWA.slice(1);
             const pesan = `Halo *${p.nama}*,\n\nBerikut Pass Card resmi Anda untuk acara *3rd Anniversary BROMOLIS*:\n- *ID Pass*: ${p.id}\n- *Jenis Tiket*: ${p.tiket}\n\n*Detail Acara*:\n📅 Sabtu, 21 Nopember 2026\n⏰ Jam 15.00 WIB\n📍 Centra Mall Apartemen Gunawangsa, Jl. Tidar No. 350, Surabaya.\n\nHarap tunjukkan ID Pass ini saat datang di lokasi. Terima kasih!`;
-
             window.open(`https://api.whatsapp.com/send?phone=${formattedWA}&text=${encodeURIComponent(pesan)}`, '_blank');
         }
 
-        // Download Template Excel Real (.xlsx)
+        // ============================================================
+        // 7. EXCEL EXPORT/TEMPLATE
+        // ============================================================
         function downloadTemplateExcel() {
             const templateData = [
                 { "Nama Peserta": "Contoh Nama 1", "Nomor WA": "081234567890", "Jenis Tiket": "Undangan" },
@@ -702,122 +704,28 @@
                 { "Nama Peserta": "Contoh Nama 3", "Nomor WA": "085712345678", "Jenis Tiket": "Doorprize" },
                 { "Nama Peserta": "Contoh Nama 4", "Nomor WA": "082134567890", "Jenis Tiket": "Free" }
             ];
-
-            const worksheet = XLSX.utils.json_to_sheet(templateData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Template Peserta");
-            XLSX.writeFile(workbook, "Template_Data_Peserta_BROMOLIS.xlsx");
+            const ws = XLSX.utils.json_to_sheet(templateData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Template Peserta");
+            XLSX.writeFile(wb, "Template_Data_Peserta_BROMOLIS.xlsx");
         }
 
-        // Impor Data dari Excel (.xlsx)
-        function importExcel(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const json = XLSX.utils.sheet_to_json(worksheet);
-
-                json.forEach(row => {
-                    const nama = row['Nama Peserta'] || row['Nama'] || '';
-                    const wa = row['Nomor WA'] || row['WA'] || '';
-                    const tiket = row['Jenis Tiket'] || 'Free';
-
-                    if (nama) {
-                        const newId = generateIDPass(tiket);
-                        dataPeserta.push({
-                            id: newId,
-                            nama: nama,
-                            wa: String(wa),
-                            tiket: tiket,
-                            status: "Belum Hadir"
-                        });
-                    }
-                });
-
-                saveLocalData();
-                alert("Data dari file Excel berhasil di-import!");
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        // Ekspor Data Peserta ke Excel (.xlsx)
         function exportDataExcel() {
-            const worksheet = XLSX.utils.json_to_sheet(dataPeserta);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Data Presensi");
-            XLSX.writeFile(workbook, "Database_Peserta_BROMOLIS_3rd.xlsx");
+            const ws = XLSX.utils.json_to_sheet(dataPeserta);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Data Presensi");
+            XLSX.writeFile(wb, "Database_Peserta_BROMOLIS_3rd.xlsx");
         }
 
-        // Modals Tambah Peserta Manual
-        function openAddModal() {
-            document.getElementById('add-modal').classList.remove('hidden');
-        }
+        // ============================================================
+        // 8. MODAL TAMBAH PESERTA
+        // ============================================================
+        function openAddModal() { document.getElementById('add-modal').classList.remove('hidden'); }
+        function closeAddModal() { document.getElementById('add-modal').classList.add('hidden'); }
 
-        function closeAddModal() {
-            document.getElementById('add-modal').classList.add('hidden');
-        }
-
-        async function saveNewPeserta() {
-            const nama = document.getElementById('add-nama').value.trim();
-            const wa = document.getElementById('add-wa').value.trim();
-            const tiket = document.getElementById('add-tiket').value;
-
-            if (!nama || !wa) {
-                alert("Harap isi Nama dan Nomor WA peserta.");
-                return;
-            }
-
-            const newId = generateIDPass(tiket);
-            const newPeserta = {
-                id: newId,
-                nama: nama,
-                wa: wa,
-                tiket: tiket,
-                status: "Belum Hadir"
-            };
-
-            // Kirim ke Supabase
-            const { error } = await supabase
-                .from('peserta')
-                .insert([newPeserta]);
-
-            if (error) {
-                // Tangani jika ID sudah ada (duplicate key)
-                if (error.code === '23505') {
-                    alert(`Gagal: ID Pass "${newId}" sudah dipakai. Coba generate ulang atau refresh data.`);
-                } else {
-                    alert(`Gagal menyimpan peserta: ${error.message}`);
-                }
-                console.error('Insert error:', error);
-                return;
-            }
-
-            // Berhasil — update state lokal agar tabel langsung berubah
-            dataPeserta.push(newPeserta);
-            renderTable();
-            updateStats();
-            closeAddModal();
-
-            // Reset form
-            document.getElementById('add-nama').value = '';
-            document.getElementById('add-wa').value = '';
-
-            alert(`Peserta "${nama}" berhasil ditambahkan dengan ID: ${newId}`);
-        }
-
-        function deletePeserta(id) {
-            if (confirm(`Hapus peserta dengan ID ${id}?`)) {
-                dataPeserta = dataPeserta.filter(p => p.id !== id);
-                saveLocalData();
-            }
-        }
-
-        // Scanner QR Code Kamera
+        // ============================================================
+        // 9. SCANNER KAMERA
+        // ============================================================
         function openScannerModal() {
             document.getElementById('scanner-modal').classList.remove('hidden');
             requestCameraAccess();
@@ -825,7 +733,7 @@
 
         function closeScannerModal() {
             if (html5QrCode) {
-                html5QrCode.stop().catch(() => {});
+                html5QrCode.stop().then(() => { html5QrCode = null; }).catch(() => {});
             }
             document.getElementById('scanner-modal').classList.add('hidden');
         }
@@ -833,6 +741,12 @@
         function requestCameraAccess() {
             const select = document.getElementById('camera-select');
             select.innerHTML = '<option value="">Meminta Akses Kamera...</option>';
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert("API kamera tidak tersedia. Pastikan Anda mengakses via HTTPS atau localhost.");
+                select.innerHTML = '<option value="">API Kamera Tidak Tersedia</option>';
+                return;
+            }
 
             Html5Qrcode.getCameras().then(devices => {
                 if (devices && devices.length > 0) {
@@ -849,7 +763,19 @@
                     select.innerHTML = '<option value="">Kamera Tidak Ditemukan</option>';
                 }
             }).catch(err => {
+                let pesan = "Gagal akses kamera. ";
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    pesan += "Izin kamera ditolak. Buka pengaturan situs di browser dan izinkan kamera.";
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    pesan += "Tidak ada kamera terdeteksi.";
+                } else if (err.name === 'NotReadableError') {
+                    pesan += "Kamera sedang dipakai aplikasi lain.";
+                } else {
+                    pesan += `Error: ${err.name || err.message}`;
+                }
+                alert(pesan);
                 select.innerHTML = '<option value="">Izin Kamera Ditolak</option>';
+                console.error("Camera error:", err);
             });
         }
 
@@ -857,7 +783,7 @@
             if (!deviceId) return;
             selectedDeviceId = deviceId;
             if (html5QrCode) {
-                html5QrCode.stop().then(() => startScanner(deviceId));
+                html5QrCode.stop().then(() => { html5QrCode = null; startScanner(deviceId); }).catch(() => {});
             } else {
                 startScanner(deviceId);
             }
@@ -865,30 +791,30 @@
 
         function startScanner(deviceId) {
             document.getElementById('scanner-placeholder').classList.add('hidden');
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => { html5QrCode = null; startScanner(deviceId); }).catch(() => {});
+                return;
+            }
             html5QrCode = new Html5Qrcode("qr-reader");
-            
             html5QrCode.start(
-                deviceId, 
+                deviceId,
                 { fps: 10, qrbox: { width: 220, height: 220 } },
-                (decodedText) => {
-                    executeCheckin(decodedText);
-                },
-                (errorMessage) => {}
+                (decodedText) => { executeCheckin(decodedText); },
+                () => {}
             ).catch(err => {
                 document.getElementById('scanner-placeholder').classList.remove('hidden');
+                alert(`Gagal memulai scanner: ${err.name || err.message || err}`);
+                console.error("Scanner start error:", err);
             });
         }
 
         function scanFromImageFile(e) {
             const file = e.target.files[0];
             if (!file) return;
-
             const qrScanner = new Html5Qrcode("qr-reader");
             qrScanner.scanFile(file, true)
-                .then(decodedText => {
-                    executeCheckin(decodedText);
-                })
-                .catch(err => alert("QR Code tidak terbaca pada file foto tersebut."));
+                .then(decodedText => { executeCheckin(decodedText); })
+                .catch(() => alert("QR Code tidak terbaca pada file foto tersebut."));
         }
 
         function handleManualCheckin() {
@@ -896,21 +822,6 @@
             if (id) {
                 executeCheckin(id);
                 document.getElementById('manual-id-input').value = '';
-            }
-        }
-
-        function executeCheckin(idPass) {
-            const p = dataPeserta.find(item => item.id.toUpperCase() === idPass.toUpperCase());
-            if (p) {
-                if (p.status === 'Hadir') {
-                    alert(`Peserta ${p.nama} (${p.id}) SUDAH melakukan Check-In sebelumnya.`);
-                } else {
-                    p.status = 'Hadir';
-                    saveLocalData();
-                    alert(`SUCCESS! Check-In Berhasil:\n\nNama: ${p.nama}\nID Pass: ${p.id}\nTiket: ${p.tiket}`);
-                }
-            } else {
-                alert(`ID Pass "${idPass}" TIDAK DITEMUKAN dalam database peserta!`);
             }
         }
     </script>
