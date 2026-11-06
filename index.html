@@ -354,7 +354,7 @@
                 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxd25xcnN5dWVmdGljc3RteGNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM4NzY3MDIsImV4cCI6MjEwOTQ1MjcwMn0.LZ8esWrB4oe0MmE0M7BbzTuS0oBIf91W9x1IaL066fw';
 
                 // ⚠️ KITA GANTI NAMANYA MENJADI supabaseClient AGAR TIDAK BENTROK
-                const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
                 // ============================================================
                 // 2. STATE GLOBAL
