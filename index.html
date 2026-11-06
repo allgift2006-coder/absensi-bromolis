@@ -490,18 +490,34 @@
                 const json = XLSX.utils.sheet_to_json(worksheet);
 
                 const batch = [];
+                // Hitung maksimal ID saat ini untuk setiap jenis tiket
+                const counters = { 'UND': 0, 'KND': 0, 'DPZ': 0, 'FRE': 0 };
+                
+                dataPeserta.forEach(p => {
+                    const code = getTiketCode(p.tiket);
+                    const num = parseInt(p.id.split('-')[1]) || 0;
+                    if (counters[code] !== undefined && num > counters[code]) {
+                        counters[code] = num;
+                    }
+                });
+
                 json.forEach(row => {
                     const nama = row['Nama Peserta'] || row['Nama'] || '';
                     const wa = row['Nomor WA'] || row['WA'] || '';
                     const tiket = row['Jenis Tiket'] || 'Free';
+                    
                     if (nama) {
+                        const code = getTiketCode(tiket);
+                        counters[code] = (counters[code] || 0) + 1;
+                        const newId = `${code}-${String(counters[code]).padStart(3, '0')}`;
+                        
                         batch.push({
-                            id: generateIDPass(tiket),
-                            nama, wa: String(wa), tiket,
+                            id: newId,
+                            nama: nama, 
+                            wa: String(wa), 
+                            tiket: tiket,
                             status: "Belum Hadir"
                         });
-                        // update sementara agar generateIDPass berikutnya increment
-                        dataPeserta.push({ id: generateIDPass(tiket) });
                     }
                 });
 
