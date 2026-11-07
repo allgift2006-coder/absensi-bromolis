@@ -163,33 +163,31 @@
         </div>
 
         <!-- Tabel Database Peserta -->
-        <div class="bg-bromolis-card border border-gray-800 rounded-xl overflow-hidden shadow-xl">
             <div class="p-4 border-b border-gray-800 flex flex-wrap justify-between items-center gap-3">
                 <h3 class="font-tech text-yellow-400 font-bold text-lg">DATABASE PESERTA EVENT</h3>
-                <input type="text" id="search-input" onkeyup="renderTable()" placeholder="Cari nama, ID, atau No WA..." class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-cyan-400 w-full sm:w-64">
-            </div>
-            
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm text-gray-300">
-                    <thead class="bg-gray-900 text-gray-400 font-sub text-xs uppercase tracking-wider border-b border-gray-800">
-                        <tr>
-                            <th class="px-4 py-3">No</th>
-                            <th class="px-4 py-3">ID Pass</th>
-                            <th class="px-4 py-3">Nama Peserta</th>
-                            <th class="px-4 py-3">Nomor WA</th>
-                            <th class="px-4 py-3">Jenis Tiket</th>
-                            <th class="px-4 py-3 text-center">Status Presensi</th>
-                            <th class="px-4 py-3 text-center">Aksi Langsung</th>
-                        </tr>
-                    </thead>
-                    <tbody id="peserta-table-body" class="divide-y divide-gray-800/60">
-                        <!-- Render Data Peserta -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </main>
+                
+                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <!-- Filter Tiket -->
+                    <select id="filter-tiket" onchange="renderTable()" class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-cyan-400">
+                        <option value="all">Semua Tiket</option>
+                        <option value="Undangan">Undangan (UND)</option>
+                        <option value="Konsumsi & Doorprize">Konsumsi (KND)</option>
+                        <option value="Doorprize">Doorprize (DPZ)</option>
+                        <option value="Free">Free (FRE)</option>
+                    </select>
 
+                    <!-- Sort / Urutan -->
+                    <select id="sort-order" onchange="renderTable()" class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-cyan-400">
+                        <option value="id-asc">ID Pass (A-Z)</option>
+                        <option value="id-desc">ID Pass (Z-A)</option>
+                        <option value="nama-asc">Nama Peserta (A-Z)</option>
+                        <option value="nama-desc">Nama Peserta (Z-A)</option>
+                    </select>
+
+                    <!-- Pencarian -->
+                    <input type="text" id="search-input" onkeyup="renderTable()" placeholder="Cari nama, ID, atau WA..." class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-cyan-400 w-full sm:w-56">
+                </div>
+            </div>
     <!-- Modal Pass Card (Aksen CR80 Standard) -->
     <div id="passcard-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-gray-900 border border-yellow-500/40 rounded-xl p-6 max-w-md w-full relative space-y-4">
@@ -344,6 +342,36 @@
         </div>
     </div>
 
+    <!-- Modal Edit Jenis Tiket -->
+    <div id="edit-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-yellow-500/40 rounded-xl p-5 max-w-sm w-full relative space-y-4">
+            <button onclick="closeEditModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h3 class="font-tech text-yellow-400 font-bold text-lg">EDIT JENIS TIKET</h3>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs text-gray-300 font-bold block mb-1">Nama Peserta</label>
+                    <input type="text" id="edit-nama-display" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-400 w-full" readonly>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-300 font-bold block mb-1">Pilih Jenis Tiket Baru</label>
+                    <select id="edit-tiket" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 w-full focus:outline-none focus:border-yellow-400">
+                        <option value="Undangan">Undangan (UND)</option>
+                        <option value="Konsumsi & Doorprize">Konsumsi & Doorprize (KND)</option>
+                        <option value="Doorprize">Doorprize (DPZ)</option>
+                        <option value="Free">Free (FRE)</option>
+                    </select>
+                </div>
+                <p class="text-[10px] text-gray-500 italic">*ID Pass dan QR Code tidak akan berubah.</p>
+                <button onclick="saveEditTiket()" class="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2 rounded-lg text-sm transition">
+                    Simpan Perubahan
+                </button>
+            </div>
+        </div>
+    </div>    
+
     <!-- Script Logika Aplikasi -->
     <script>
 
@@ -363,6 +391,7 @@
                 let html5QrCode = null;
                 let selectedDeviceId = null;
                 let currentActivePeserta = null;
+                let currentEditId = null; // Menyimpan ID peserta yang sedang diedit
 
                 // ============================================================
                 // 3. INIT SAAT HALAMAN DIMUAT
@@ -487,6 +516,11 @@
                         const batch = [];
                         const counters = { 'UND': 0, 'KND': 0, 'DPZ': 0, 'FRE': 0 };
                         
+                        // Kumpulkan semua Nomor WA yang sudah ada di database untuk pengecekan duplikat
+                        const existingWAs = new Set(dataPeserta.map(p => p.wa.replace(/[^0-9]/g, '')));
+                        let duplicateCount = 0;
+
+                        // Hitung maksimal ID saat ini untuk setiap jenis tiket
                         dataPeserta.forEach(p => {
                             const code = getTiketCode(p.tiket);
                             const num = parseInt(p.id.split('-')[1]) || 0;
@@ -496,27 +530,34 @@
                         });
 
                         json.forEach(row => {
-                            const nama = row['Nama Peserta'] || row['Nama'] || '';
-                            const wa = row['Nomor WA'] || row['WA'] || '';
+                            const nama = (row['Nama Peserta'] || row['Nama'] || '').trim();
+                            // Bersihkan format nomor WA (hanya ambil angka)
+                            let wa = String(row['Nomor WA'] || row['WA'] || '').replace(/[^0-9]/g, '');
                             const tiket = row['Jenis Tiket'] || 'Free';
                             
-                            if (nama) {
-                                const code = getTiketCode(tiket);
-                                counters[code] = (counters[code] || 0) + 1;
-                                const newId = `${code}-${String(counters[code]).padStart(3, '0')}`;
-                                
-                                batch.push({
-                                    id: newId,
-                                    nama: nama, 
-                                    wa: String(wa), 
-                                    tiket: tiket,
-                                    status: "Belum Hadir"
-                                });
+                            if (nama && wa) {
+                                // CEK DUPLIKAT: Jika WA sudah ada di database atau di file excel yang sedang di-import
+                                if (existingWAs.has(wa)) {
+                                    duplicateCount++;
+                                } else {
+                                    existingWAs.add(wa); // Tandai WA ini agar tidak diinput 2x di file yang sama
+                                    const code = getTiketCode(tiket);
+                                    counters[code] = (counters[code] || 0) + 1;
+                                    const newId = `${code}-${String(counters[code]).padStart(3, '0')}`;
+                                    
+                                    batch.push({
+                                        id: newId,
+                                        nama: nama, 
+                                        wa: wa, 
+                                        tiket: tiket,
+                                        status: "Belum Hadir"
+                                    });
+                                }
                             }
                         });
 
                         if (batch.length === 0) {
-                            alert('Tidak ada data valid di file Excel.');
+                            alert(`Tidak ada data baru untuk di-import. ${duplicateCount > 0 ? duplicateCount + ' data duplikat dilewati.' : ''}`);
                             return;
                         }
 
@@ -527,7 +568,13 @@
                         }
 
                         await loadDataFromSupabase();
-                        alert(`${batch.length} peserta berhasil di-import.`);
+                        
+                        // Pesan sukses dengan info duplikat
+                        let alertMsg = `${batch.length} peserta berhasil di-import.`;
+                        if (duplicateCount > 0) {
+                            alertMsg += `\n\n(${duplicateCount} data dilewati karena Nomor WA sudah terdaftar).`;
+                        }
+                        alert(alertMsg);
                     };
                     reader.readAsArrayBuffer(file);
                 }
@@ -622,14 +669,32 @@
                 function renderTable() {
                     const tbody = document.getElementById('peserta-table-body');
                     const search = document.getElementById('search-input').value.toLowerCase();
+                    const filterTiket = document.getElementById('filter-tiket').value;
+                    const sortOrder = document.getElementById('sort-order').value;
                     tbody.innerHTML = '';
 
-                    const filtered = dataPeserta.filter(p =>
+                    // 1. Filter berdasarkan Pencarian (Nama/ID/WA)
+                    let filtered = dataPeserta.filter(p =>
                         p.nama.toLowerCase().includes(search) ||
                         p.id.toLowerCase().includes(search) ||
                         p.wa.includes(search)
                     );
 
+                    // 2. Filter berdasarkan Jenis Tiket
+                    if (filterTiket !== 'all') {
+                        filtered = filtered.filter(p => p.tiket === filterTiket);
+                    }
+
+                    // 3. Urutkan (Sorting)
+                    filtered.sort((a, b) => {
+                        if (sortOrder === 'id-asc') return a.id.localeCompare(b.id);
+                        if (sortOrder === 'id-desc') return b.id.localeCompare(a.id);
+                        if (sortOrder === 'nama-asc') return a.nama.localeCompare(b.nama);
+                        if (sortOrder === 'nama-desc') return b.nama.localeCompare(a.nama);
+                        return 0;
+                    });
+
+                    // 4. Render ke Tabel
                     filtered.forEach((p, index) => {
                         const tr = document.createElement('tr');
                         tr.className = "hover:bg-gray-800/50 transition";
@@ -646,9 +711,11 @@
                             <td class="px-4 py-3"><span class="text-xs px-2 py-0.5 rounded font-sub font-bold text-black badge-qr-${getTiketCode(p.tiket)}">${p.tiket}</span></td>
                             <td class="px-4 py-3 text-center">${statusBadge}</td>
                             <td class="px-4 py-3 text-center space-x-1">
-                                <button onclick="openPasscard('${p.id}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-2.5 py-1 rounded text-xs font-bold"><i class="fa-solid fa-id-card"></i> Pass Card</button>
-                                <button onclick="sendWA('${p.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-xs font-bold"><i class="fa-brands fa-whatsapp"></i> WA</button>
-                                <button onclick="deletePeserta('${p.id}')" class="bg-red-600 hover:bg-red-500 text-white px-2 py-1 rounded text-xs"><i class="fa-solid fa-trash"></i></button>
+                                <button onclick="openPasscard('${p.id}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-2.5 py-1 rounded text-xs font-bold" title="Pass Card"><i class="fa-solid fa-id-card"></i></button>
+                                <button onclick="sendWA('${p.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-xs font-bold" title="Kirim WA"><i class="fa-brands fa-whatsapp"></i></button>
+                                <!-- TOMBOL EDIT BARU -->
+                                <button onclick="openEditModal('${p.id}')" class="bg-yellow-500 hover:bg-yellow-400 text-black px-2.5 py-1 rounded text-xs font-bold" title="Edit Tiket"><i class="fa-solid fa-pen"></i></button>
+                                <button onclick="deletePeserta('${p.id}')" class="bg-red-600 hover:bg-red-500 text-white px-2.5 py-1 rounded text-xs" title="Hapus"><i class="fa-solid fa-trash"></i></button>
                             </td>`;
                         tbody.appendChild(tr);
                     });
@@ -731,7 +798,52 @@
                 // 8. MODAL TAMBAH PESERTA
                 // ============================================================
                 function openAddModal() { document.getElementById('add-modal').classList.remove('hidden'); }
-                function closeAddModal() { document.getElementById('add-modal').classList.add('hidden'); }
+                // ============================================================
+                // 10. FITUR EDIT JENIS TIKET
+                // ============================================================
+                function openEditModal(id) {
+                    const p = dataPeserta.find(item => item.id === id);
+                    if (!p) return;
+
+                    currentEditId = id;
+                    document.getElementById('edit-nama-display').value = p.nama;
+                    document.getElementById('edit-tiket').value = p.tiket;
+                    
+                    document.getElementById('edit-modal').classList.remove('hidden');
+                }
+
+                function closeEditModal() {
+                    document.getElementById('edit-modal').classList.add('hidden');
+                    currentEditId = null;
+                }
+
+                async function saveEditTiket() {
+                    if (!currentEditId) return;
+
+                    const newTiket = document.getElementById('edit-tiket').value;
+
+                    // Update ke database Supabase
+                    const { error } = await supabaseClient
+                        .from('peserta')
+                        .update({ tiket: newTiket })
+                        .eq('id', currentEditId);
+
+                    if (error) {
+                        alert(`Gagal mengubah tiket: ${error.message}`);
+                        return;
+                    }
+
+                    // Update data di state lokal agar tabel langsung berubah tanpa refresh
+                    const p = dataPeserta.find(item => item.id === currentEditId);
+                    if (p) {
+                        p.tiket = newTiket;
+                    }
+
+                    renderTable();
+                    updateStats();
+                    closeEditModal();
+                    alert(`Jenis tiket berhasil diubah menjadi: ${newTiket}`);
+                }
 
                 // ============================================================
                 // 9. SCANNER KAMERA
