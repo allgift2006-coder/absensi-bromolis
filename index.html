@@ -796,16 +796,46 @@
             try {
                 const ctx = getAudioContext();
                 const now = ctx.currentTime;
-                [523.25, 659.25, 783.99, 1046.50, 1318.51].forEach((freq, idx) => {
+                
+                // 1. Nada Fanfare (Kemenangan)
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
                     const osc = ctx.createOscillator();
                     const gain = ctx.createGain();
                     osc.type = 'triangle';
                     osc.frequency.setValueAtTime(freq, now + (idx * 0.1));
-                    gain.gain.setValueAtTime(0.4, now + (idx * 0.1));
+                    gain.gain.setValueAtTime(0.2, now + (idx * 0.1));
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + (idx * 0.1) + 0.5);
                     osc.connect(gain); gain.connect(ctx.destination);
-                    osc.start(now + (idx * 0.1)); osc.stop(now + (idx * 0.1) + 0.55);
+                    osc.start(now + (idx * 0.1)); osc.stop(now + (idx * 0.1) + 0.5);
                 });
-            } catch(e) {}
+                
+                // 2. Suara Tepuk Tangan (Gunakan Noise Generator)
+                const bufferSize = ctx.sampleRate * 1.5; // 1.5 detik
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1; // White noise
+                }
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+                const noiseGain = ctx.createGain();
+                
+                // Volume naik cepat lalu turun perlahan (seperti tepuk tangan)
+                noiseGain.gain.setValueAtTime(0, now);
+                noiseGain.gain.linearRampToValueAtTime(0.15, now + 0.1);
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
+                
+                // Filter agar suaranya tidak terlalu tajam
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 1200;
+                
+                noise.connect(filter);
+                filter.connect(noiseGain);
+                noiseGain.connect(ctx.destination);
+                noise.start(now);
+                
+            } catch(e) { console.error("Audio error", e); }
         }
 
         function switchPage(page) {
@@ -1424,21 +1454,57 @@
             if (pressTimer) { clearInterval(pressTimer); pressTimer=null; if(!isSpinning) executeSpin(currentHoldDurationMs); }
         }
         function executeSpin(dur) {
-            isSpinning = true; const startT = Date.now(); const spd = 0.4 + (dur/10000);
+            isSpinning = true; 
+            const startT = Date.now(); 
+            const spd = 0.4 + (dur/10000);
+            let lastSegmentIndex = -1; // Untuk melacak sekat terakhir
+
             function anim() {
                 const prog = (Date.now() - startT)/dur;
-                if(prog >= 1) { cancelAnimationFrame(spinAnimationId); stopRotateWheel(); return; }
+                if(prog >= 1) { 
+                    cancelAnimationFrame(spinAnimationId); 
+                    stopRotateWheel(); 
+                    return; 
+                }
+                
                 startAngle += spd * Math.pow(1 - prog, 3);
-                drawRouletteWheel(); spinAnimationId = requestAnimationFrame(anim);
-            } anim();
+                
+                // LOGIKA SUARA TIK-TIK RODA
+                if (poolUndianSlots.length > 0) {
+                    const numSegments = poolUndianSlots.length;
+                    const arc = (2 * Math.PI) / numSegments;
+                    const currentSegment = Math.floor(((startAngle + Math.PI/2) % (2*Math.PI)) / arc);
+                    
+                    if (currentSegment !== lastSegmentIndex) {
+                        playTickSound();
+                        lastSegmentIndex = currentSegment;
+                    }
+                }
+
+                drawRouletteWheel(); 
+                spinAnimationId = requestAnimationFrame(anim);
+            } 
+            anim();
         }
-        function stopRotateWheel() {
-            isSpinning = false; document.getElementById('btn-spin-text').innerText = "TEKAN / TAHAN START";
+                function stopRotateWheel() {
+            isSpinning = false; 
+            document.getElementById('btn-spin-text').innerText = "TEKAN / TAHAN START";
             document.getElementById('power-bar-fill').style.width = '0%';
-            const deg = (startAngle * 180 / Math.PI) + 90; const arcd = (Math.PI / (poolUndianSlots.length / 2)) * 180 / Math.PI;
+            
+            const deg = (startAngle * 180 / Math.PI) + 90; 
+            const arcd = (Math.PI / (poolUndianSlots.length / 2)) * 180 / Math.PI;
             const idx = Math.floor((360 - (deg % 360)) / arcd);
             currentWinnerSlot = poolUndianSlots[(idx + poolUndianSlots.length) % poolUndianSlots.length];
+            
+            // --- MULAI EFEK MERIAH ---
+            playCheerAndClapSound(); // Panggil suara tepuk tangan
+            
+            // Konfeti meledak 3 kali berturut-turut
             confetti({particleCount:150, spread:100, origin:{y:0.6}});
+            setTimeout(() => confetti({particleCount:120, spread:150, origin:{y:0.5}, angle: 60}), 200);
+            setTimeout(() => confetti({particleCount:120, spread:150, origin:{y:0.5}, angle: 120}), 400);
+            // -------------------------
+
             const h = document.getElementById('select-hadiah-aktif').value;
             const hItem = daftarHadiah.find(x => x.nama === h); if(hItem && hItem.jumlah > 0) hItem.jumlah -= 1;
             renderStokHadiah();
