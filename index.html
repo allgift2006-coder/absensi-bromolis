@@ -691,21 +691,6 @@
             alert('Akses ditolak: level akun Anda tidak memiliki izin untuk fitur ini.');
         }
 
-        function handleLogin() {
-            const u = document.getElementById('login-user').value.trim().toLowerCase();
-            const p = document.getElementById('login-pass').value.trim();
-
-            if (ROLE_ACCESS[u] && userPasswords[u] && userPasswords[u] === p) {
-                currentRole = u;
-                document.getElementById('login-section').classList.add('hidden');
-                document.getElementById('main-app').classList.remove('hidden');
-
-                applyRolePermissions();
-                initSupabase();
-            } else {
-                alert('Username atau Password salah! Periksa kembali.');
-            }
-        }
 
         function handleLogout() {
             try { closeScannerModal(); } catch (e) {}
@@ -797,15 +782,36 @@
             }
         }
 
-                function resetPasswordDefault() {
+        async function resetPasswordDefault() {
             if (!roleCan('manageAccounts')) return denyAccess();
             if(confirm("Kembalikan semua password ke default (super123, admin123, user123)?")) {
-                userPasswords = { 'superadmin': 'super123', 'admin': 'admin123', 'user': 'user123' };
-                localStorage.setItem('bromolis_user_passwords', JSON.stringify(userPasswords));
-                document.getElementById('pass-input-superadmin').value = userPasswords['superadmin'];
-                document.getElementById('pass-input-admin').value = userPasswords['admin'];
-                document.getElementById('pass-input-user').value = userPasswords['user'];
-                alert("Password telah di-reset ke default.");
+                
+                const btn = document.querySelector('#kelola-akun-modal button[onclick="resetPasswordDefault()"]');
+                if (btn) {
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> MERESET...';
+                    btn.disabled = true;
+                }
+
+                // Update password default ke Supabase
+                const { error } = await supabaseClient.from('users').upsert([
+                    { username: 'superadmin', password: 'super123', role: 'superadmin' },
+                    { username: 'admin', password: 'admin123', role: 'admin' },
+                    { username: 'user', password: 'user123', role: 'user' }
+                ]);
+
+                if (btn) {
+                    btn.innerHTML = 'RESET KE PASSWORD DEFAULT';
+                    btn.disabled = false;
+                }
+
+                if (error) {
+                    alert("Gagal reset password: " + error.message);
+                } else {
+                    document.getElementById('pass-input-superadmin').value = 'super123';
+                    document.getElementById('pass-input-admin').value = 'admin123';
+                    document.getElementById('pass-input-user').value = 'user123';
+                    alert("Password berhasil di-reset ke default!");
+                }
             }
         }
 
